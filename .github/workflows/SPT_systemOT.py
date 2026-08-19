@@ -341,6 +341,7 @@ class SPT_OT_export_tool(bpy.types.Operator):
                 item = fmt.presets.add()
                 item.preset_name = preset["name"]
                 item.preset_filepath = preset["filepath"]
+                item.origin = preset["origin"]
 
         for fmt in enabled_fmt:
             fmt.enabled = True
@@ -367,10 +368,21 @@ class SPT_OT_export_tool(bpy.types.Operator):
             if fmt.enabled:
                 i = 0
                 for item in fmt.presets:
-                    box.prop(item, "selected", text=item.preset_name, toggle=True)
                     i += 1
-                if i == 0 :
+
+                if i == 0:
                     box.label(text="No preset can be accessed for this export type, please create one using the base Blender export function")
+                else:
+                    row = box.row()
+                    col_addon = row.column()
+                    col_addon.label(text="Add-on delivered presets")
+                    col_user = row.column()
+                    col_user.label(text="User created presets")
+                    for item in fmt.presets:
+                        if item.origin == "addon" :
+                            col_addon.prop(item, "selected", text=item.preset_name, toggle=True)
+                        else:
+                            col_user.prop(item, "selected", text=item.preset_name, toggle=True)
         
         layout.separator()
 
@@ -403,4 +415,3 @@ class SPT_OT_export_tool(bpy.types.Operator):
 
         self.report({'INFO'}, f"{exported_count} export(s) terminé(s).")
         return {'FINISHED'}
-
