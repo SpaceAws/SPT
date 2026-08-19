@@ -700,13 +700,18 @@ def fix_obj_name(context, obj):
     obj.name=new_name
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
+def get_addon_presets_dir(operator_idname):
+    addon_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(addon_dir, "export_presets", operator_idname)
+
+# ──────────────────────────────────────────────────────────────────────────────────────────
 def get_presets_for_operator(bl_idname):
     """bl_idname ex: 'export_scene.fbx'"""
-    subdir = f"operator/{bl_idname}"
-    preset_dirs = bpy.utils.preset_paths(subdir)
-
     presets = []
-    for folder in preset_dirs:
+
+    # User presets
+    subdir = f"operator/{bl_idname}"
+    for folder in bpy.utils.preset_paths(subdir):
         if not os.path.isdir(folder):
             continue
         for filename in sorted(os.listdir(folder)):
@@ -714,7 +719,20 @@ def get_presets_for_operator(bl_idname):
                 presets.append({
                     "name": os.path.splitext(filename)[0],
                     "filepath": os.path.join(folder, filename),
+                    "origin": "user",
                 })
+
+    # Addon presets
+    addon_folder = get_addon_presets_dir(bl_idname)
+    if os.path.isdir(addon_folder):
+        for filename in sorted(os.listdir(addon_folder)):
+            if filename.endswith(".py"):
+                presets.append({
+                    "name": os.path.splitext(filename)[0],
+                    "filepath": os.path.join(addon_folder, filename),
+                    "origin": "addon",
+                })
+
     return presets
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
