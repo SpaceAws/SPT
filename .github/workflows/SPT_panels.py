@@ -434,7 +434,7 @@ class SPT_PT_renamer(bpy.types.Panel):
         layout.separator()
         
         # ── Button ──
-        layout.operator("spt.remove_numeral", icon="LINENUMBERS_ON")        
+        layout.operator("spt.fix_bone_name", icon="LINENUMBERS_ON")        
         
         # ── Labels ──
         row = layout.row(align=True)
@@ -660,7 +660,7 @@ class SPT_PT_system(bpy.types.Panel):
         
         row = layout.row(align=True)
         row.operator("spt.clean_scene", icon="TRASH") 
-        row.operator("spt.fix_obj_name", icon="SORTALPHA")       
+        row.operator("spt.fix_selected_name", icon="SORTALPHA")       
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
 class SPT_PT_scene_validation(bpy.types.Panel):
@@ -680,6 +680,19 @@ class SPT_PT_scene_validation(bpy.types.Panel):
         # Gets issues
         auto_validation = False
         validation_check, messages, operators, objects = get_issues(context)
+
+        # Selector for collections to avoid
+        layout.label(text="Add/Remove non-checked collections :")
+        row = layout.row(align=True)
+        row.prop(props, "unverified_collection", text="")
+        row.operator("spt.add_coll_to_unverification", icon="CHECKMARK", text="")
+        for coll in get_valid_unverified_colls() :
+            row = layout.row(align=True)
+            row.label(text=coll.name, icon="OUTLINER_COLLECTION")
+            op = row.operator("spt.remove_coll_from_unverification",text="",icon='X',)
+            op.coll_name = coll.name
+
+        layout.separator()
 
         # Adds a warning message or each issue
         if 0 in validation_check :

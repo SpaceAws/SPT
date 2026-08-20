@@ -19,7 +19,6 @@
 #       - from_widget_find_bone : given an object, tries to find the bone that the object is a custom widget of
 #       - get_view_layer_collection : gets the view layer collection of the given widget object
 #       - recursively_find_layer_collection : recursively finds a collection with a specified collection name
-#       - remove_sfx_number : removes .### numeral from selected bone to instead increment its count suffix such as _## and its equivalent's suffix as well
 #       - select_children : selects current bone children
 #       - update_rig_preset : automatically updates rig properties based on selected preset
 #   - System :
@@ -27,12 +26,14 @@
 #       - check_name : returns whether any object in the scene has an unaccepted name (True for no problems)
 #       - count_total_verts : returns total poly count in the scene
 #       - get_issues : applies all checking systems to the entire scene and returns a value for each checked common issue to tell if it is present
-#       - fix_obj_name : fixes current object's name to match restriction
+#       - fix_name : fixes current object's name to match restriction, adaptable to objects, materials and bones
 #       - get_presets_for_operator : returns found presets for the given export format
 #       - PresetPropCollector, PresetFakeContext, PresetFakeBpy : classes used to create a fake environment for reading preset properties safely
 #       - read_preset_properties : reads the properties from given preset
 #       - export_with_preset : exports scene using given format and preset
 #       - find_export_operators : searches for all export formats available to list them in the export tool
+#       - collection_search : auto-searches for collections in the scene to auto-complete a string property
+#       - get_valid_unverified_colls : gets only valid collections, avoiding errors when supressing a referenced one
 #   - JSON
 #       - load_widgets_data : loads dictionnary stocked in json
 #       - save_widgets_data : saves dictionnary in json
@@ -54,6 +55,7 @@ import os
 
 WIDGET_JSON_PATH = os.path.join(os.path.dirname(__file__), "SPT_widgets.json")
 widget_items_cache = []
+unverified_colls = []
 
 # ─────────────────────────────────────────────
 
@@ -225,6 +227,7 @@ def create_bone(collection, name, head_loc, tail_loc, parent, connected, roll=0.
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
 def create_controller(context, shape_key, name):
+    global unverified_colls
     verts_list = []
     
     # Creates a hidden collection for control shapes if it doesn't already exist
@@ -233,6 +236,8 @@ def create_controller(context, shape_key, name):
         ctrl_collection = bpy.data.collections.new("CTRL_Shapes")
         bpy.context.scene.collection.children.link(ctrl_collection)
         ctrl_collection.hide_viewport = True
+    if ctrl_collection not in get_valid_unverified_colls() :
+        unverified_colls.append(ctrl_collection)
     
     # Deletes old obj if it exists
     obj = bpy.data.objects.get(name)
@@ -431,42 +436,6 @@ def recursively_find_layer_collection(layer_collection: 'Collection', collection
         found = recursively_find_layer_collection(layer, collection_name)
         if found:
             return found
-        
-# ──────────────────────────────────────────────────────────────────────────────────────────
-def remove_sfx_numbers(context, curr_bone):
-    active_obj = context.active_object
-    new_name = curr_bone.name
-    
-    # Checking if there is a .### numeral suffix
-    if len(new_name) > 4 and new_name[-4] == "." and new_name[-3:].isdigit():
-        new_name = new_name[:-4]
-    
-    # Parsing new_name
-    prfx, base, count_sfx, side_sfx = parse_string(new_name)
-    if base[-1] == "_" :
-        base = base[:-1]
-    unique = False
-    i = 0
-    while not unique :
-        # Setting new_name, then checking if it is unique or increment count_sfx
-        new_name = f"{prfx}{base}{fmt_index(i)}{side_sfx}"
-        bone = active_obj.data.edit_bones.get(new_name) if context.object.mode == 'EDIT' else active_obj.pose.bones.get(new_name)
-        if not bone :
-            base_name = f"{prfx}{base}{side_sfx}"
-            base_bone = active_obj.data.edit_bones.get(base_name) if context.object.mode == 'EDIT' else active_obj.pose.bones.get(base_name)
-            if base_bone and base_bone != curr_bone :
-                base_bone.name = f"{prfx}{base}_00{side_sfx}"
-                new_name = f"{prfx}{base}{fmt_index(i+1)}{side_sfx}"
-            elif i == 0 :
-                new_name = f"{prfx}{base}{side_sfx}"
-            unique = True
-        elif bone == curr_bone :
-            if i == 0 :
-                new_name = f"{prfx}{base}{side_sfx}"
-            unique = True
-        i+=1
-        
-    return new_name
   
 # ──────────────────────────────────────────────────────────────────────────────────────────  
 def select_children(context, bone):
@@ -532,8 +501,7 @@ def check_normals_outward(obj):
     return flipped_count == 0
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
-def check_name(obj):
-    name = obj.name
+def check_name(name, obj_type="MESH"):
 
     unaccepted_char = [" ", "&", "é", "#", "è", "à", "@", "ç", "ù", "*", "{", "}", "(", ")", "[", "]", "€", "$", "~"]
     for char in unaccepted_char :
@@ -542,6 +510,23 @@ def check_name(obj):
     
     if len(name) > 4 and name[-4] == "." and name[-3:].isdigit():
         return False
+    
+    if obj_type=="MESH":
+        if not name.startswith("G_") and not name.startswith("GEO_"):
+            return False
+    elif obj_type=="material":
+        if not name.startswith("M_"):
+            return False
+    elif obj_type=="ARMATURE":
+        if not name.startswith("R_") and not name.startswith("RIG_"):
+            return False
+    elif obj_type=="EMPTY":
+        if not name.startswith("N_"):
+            return False
+    else:
+        prfx, base, count_sfx, side_sfx = parse_string(new_name)
+        if prfx == "" or base == "":
+            return False
     
     return True
 
@@ -568,7 +553,7 @@ def get_issues(context):
     props  = context.scene.spt
 
     validation_check = []
-    for i in range(9) :
+    for i in range(10) :
         validation_check.append(1)
 
     uv_objects = []
@@ -579,33 +564,37 @@ def get_issues(context):
     name_objects = []
     smooth_objects = []
     modifier_objects = []
+    material_objects = []
 
     for obj in context.scene.objects:
+        if any(obj.name in coll.objects for coll in get_valid_unverified_colls()):
+            continue
+        #UVs
         if obj.type == "MESH" and obj.visible_get() and not obj.data.uv_layers:
             validation_check[0] = 0
             uv_objects.append(obj.name)
-        
+        #Location
         if obj.type in ["MESH", "ARMATURE"] and not obj.location == Vector((0.0,0.0,0.0)):
             validation_check[1] = 0
             loc_objects.append(obj.name)
-        
+        #Scale
         if not obj.scale == Vector((1.0,1.0,1.0)):
             validation_check[2] = 0
             scale_objects.append(obj.name)
-
+        #Rotation
         rot = (obj.rotation_euler[0], obj.rotation_euler[1], obj.rotation_euler[2])
         if not rot == (0.0, 0.0, 0.0):
             validation_check[3] = 0
             rot_objects.append(obj.name)
-        
+        #Normals
         if obj.type == "MESH" and obj.visible_get() and not check_normals_outward(obj):
             validation_check[4] = 0
             normals_objects.append(obj.name)
-        
-        if not check_name(obj):
+        #Naming
+        if not check_name(obj.name, obj_type=obj.type):
             validation_check[5] = 0
             name_objects.append(obj.name)
-
+        #Smooth
         if obj.type == "MESH":
             smoothed = False
             for mod in obj.modifiers:
@@ -615,28 +604,36 @@ def get_issues(context):
             if not smoothed :
                 validation_check[6] = 0
                 smooth_objects.append(obj.name)
-
+        #Modifiers
         hidden = False
         for mod in obj.modifiers:
             if not mod.show_viewport:
                 hidden = True
         if hidden :
-            validation_check[7] = 0
-            modifier_objects.append(obj.name)
-
-        if count_total_verts(context) >= 100000 :
-            validation_check[8] = 0
+                validation_check[7] = 0
+                modifier_objects.append(obj.name)
+    
+    #Poly count
+    if count_total_verts(context) >= 100000 :
+        validation_check[8] = 0
+    
+    #Materials
+    for mat in bpy.data.materials :
+        if not check_name(mat.name, obj_type="material") :
+            validation_check[9] = 0
+            material_objects.append(mat.name)
 
     messages=[
-            f"UVs issues",
-            f"Location issues",
-            f"Scale issues",
-            f"Rotation issues",
-            f"Normals issues",
-            f"Naming issues",
-            f"Smooth issues",
-            f"Modifiers issues",
+            "UVs issues",
+            "Location issues",
+            "Scale issues",
+            "Rotation issues",
+            "Normals issues",
+            "Naming issues",
+            "Smooth issues",
+            "Modifiers issues",
             "Poly count > 100 000",
+            "Materials issues",
             ]
     operators=[
             "spt.uv_creation",
@@ -644,10 +641,11 @@ def get_issues(context):
             "spt.apply_scale",
             "spt.apply_rot",
             "spt.normals_orient",
-            "spt.fix_name",
+            "spt.fix_obj_name",
             "spt.apply_smooth",
             "spt.show_modifier",
-            ""
+            "",
+            "spt.fix_mat_name",
             ]
     objects=[
             uv_objects,
@@ -659,45 +657,87 @@ def get_issues(context):
             smooth_objects,
             modifier_objects,
             "",
+            material_objects,
             ]
 
     return validation_check, messages, operators, objects
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
-def fix_obj_name(context, obj):
+def fix_name(context, obj, obj_type="MESH", bone=None):
     new_name = obj.name
+    # Uses bone name for armatures
+    if obj_type == "bone" and bone != None:
+        new_name = bone.name
 
+    # Checks for unaccepted characters
     unaccepted_char = ["&", "é", "#", "è", "à", "@", "ç", "ù", "*", "{", "}", "(", ")", "[", "]", "€", "$", "~"]
+    j = 0
     for i, char in enumerate(new_name):
         if char in unaccepted_char :
-            new_name = f"{new_name[:i]}{new_name[i+1:]}"
+            new_name = f"{new_name[:i-j]}{new_name[i+1-j:]}"
+            j += 1
 
+    # Checks for blank space
     for i, char in enumerate(new_name):
         if char == " " :
             new_name = f"{new_name[:i]}_{new_name[i+1:]}"
 
+    # Checks prefixes
+    if obj_type=="MESH":
+        if not new_name.startswith("G_") and not new_name.startswith("GEO_"):
+            new_name = f"GEO_{new_name}"
+    elif obj_type=="material":
+        if not new_name.startswith("M_"):
+            new_name = f"M_{new_name}"
+    elif obj_type=="ARMATURE":
+        if not new_name.startswith("R_") and not new_name.startswith("RIG_"):
+            new_name = f"RIG_{new_name}"
+    elif obj_type=="EMPTY":
+        if not new_name.startswith("N_"):
+            new_name = f"N_{new_name}"
+    else:
+        prfx, base, count_sfx, side_sfx = parse_string(new_name)
+        if prfx == "" or base == "":
+            new_name = f"O_{new_name}"
+
+
+    # Removes numeral .001
     if len(new_name) > 4 and new_name[-4] == "." and new_name[-3:].isdigit():
         new_name = new_name[:-4]
-        unique = False
-        i = 0
-        while not unique :
-            # Setting new_name, then checking if it is unique or increment
-            curr_name = f"{new_name}{fmt_index(i)}"
-            curr_obj = context.scene.objects.get(curr_name)
 
-            if not curr_obj :
-                base_obj = context.scene.objects.get(new_name)
-                if base_obj and base_obj != obj :
-                    base_obj.name = f"{new_name}_00"
-                    new_name = f"{new_name}{fmt_index(i+1)}"
-                elif i != 0 :
-                    new_name = curr_name
-                unique = True
-            elif curr_obj == obj :
-                unique = True
-            i+=1
+    # Parses name
+    prfx, base, count_sfx, side_sfx = parse_string(new_name)
+    if base[-1] == "_" :
+        base = base[:-1]
 
-    obj.name=new_name
+    unique = False
+    i = 0
+    while not unique :
+        # Setting new_name, then checking if it is unique or increment
+        curr_name = f"{prfx}{base}{fmt_index(i)}{side_sfx}"
+        curr_obj = context.scene.objects.get(curr_name) if obj_type != "material" else bpy.data.materials.get(curr_name)
+        if obj_type == "bone":
+            curr_obj = obj.data.edit_bones.get(curr_name) if context.object.mode == 'EDIT' else obj.pose.bones.get(curr_name)
+        if not curr_obj :
+            base_name =  f"{prfx}{base}{side_sfx}"
+            base_obj = context.scene.objects.get(base_name) if obj_type != "material" else bpy.data.materials.get(base_name)
+            if obj_type == "bone":
+                base_obj = obj.data.edit_bones.get(base_name) if context.object.mode == 'EDIT' else obj.pose.bones.get(base_name)
+            if base_obj and base_obj != obj :
+                base_obj.name = f"{prfx}{base}_00{side_sfx}"
+                new_name = f"{prfx}{base}{fmt_index(i+1)}{side_sfx}"
+            elif i == 0 :
+                new_name = f"{prfx}{base}{side_sfx}"
+            else:
+                new_name = curr_name
+            unique = True
+        elif curr_obj == obj or curr_obj == bone != None:
+            if i == 0 :
+                new_name = f"{prfx}{base}{side_sfx}"
+            unique = True
+        i+=1
+
+    return new_name
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
 def get_addon_presets_dir(operator_idname):
@@ -829,6 +869,26 @@ def find_export_operators():
             })
 
     return sorted(exporters, key=lambda e: e["label"])
+
+# ──────────────────────────────────────────────────────────────────────────────────────────
+def collection_search(self, context, edit_text):
+    colls = bpy.data.collections
+    return [coll.name for coll in colls]
+
+# ──────────────────────────────────────────────────────────────────────────────────────────
+def get_valid_unverified_colls():
+    global unverified_colls
+
+    valid = []
+    for coll in unverified_colls:
+        try:
+            _ = coll.name
+            valid.append(coll)
+        except ReferenceError:
+            continue
+
+    unverified_colls[:] = valid  # remplace le contenu en place
+    return unverified_colls
 
 # ─────────────────────────────────────────────
 #  JSON

@@ -1370,15 +1370,14 @@ class SPT_OT_make_widget_unique(bpy.types.Operator):
         return {'FINISHED'}
     
 # ──────────────────────────────────────────────────────────────────────────────────────────
-class SPT_OT_remove_numeral(SPT_OT_base_bone_action):
+class SPT_OT_fix_bone_name(SPT_OT_base_bone_action):
     """
-    Removing ".001" at the end of a bone's name, replacing it with correct numbering
+    Removing ".001" at the end of a bone's name, replacing it with correct numbering, also checking for unaccepted characters
     """
-    bl_idname = "spt.remove_numeral"
-    bl_label  = "Remove/Edit numeral"
-    bl_description = "Removes .### suffix at the end of current bone's name and/or edits existant numerals to increment bone's name"
+    bl_idname = "spt.fix_bone_name"
+    bl_label  = "Fix active bone(s) name"
+    bl_description = "Removes .### suffix at the end of current bone's name and/or edits existant numerals to increment bone's name, checks for unaccepted characters"
 
-    
     def execute(self, context):
         props = context.scene.spt
         
@@ -1389,9 +1388,9 @@ class SPT_OT_remove_numeral(SPT_OT_base_bone_action):
                 select_children(context, bone)
             selected_bones = context.selected_pose_bones if context.object.mode == 'POSE' else context.selected_editable_bones
         for bone in selected_bones :
-            bone.name = remove_sfx_numbers(context, bone)
+            bone.name = fix_name(context, context.active_object, obj_type="bone", bone=bone)
                 
-        self.report({"INFO"}, "Numeral suffix successfully edited")
+        self.report({"INFO"}, "Bone name successfully fixed")
         return {'FINISHED'}
 
 # ──────────────────────────────────────────────────────────────────────────────────────────    

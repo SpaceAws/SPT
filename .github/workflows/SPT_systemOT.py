@@ -17,9 +17,10 @@ from .SPT_functions import *
 # TODO :
 #   - Batch import : système qui récupère tous les fichiers blend d'un dossier et ajoute leur contenu à l'asset browser de Blender + possibilité d'import instantané (https://shaterstudio.gumroad.com/l/ohzllx)
 #   - Export avec preset : 
-#   - Scene validator : show hidden ou del hidden pour les modifiers
+#   - Scene validator : show hidden ou del hidden pour les modifiers, ajouter une vérif des materials si mesh (naming), naming des bones si armature, pas de smooth verif si hidden (control shapes)
 #   - Render tool : auto-render de frame ranges, changements de paramètres entre deux...
 #   - Comparator : Comparaison de 2 versions pour review les changements
+#   - Set prefixes global pour tout l'addon (bones et objects) avec la popup et des props
 
 # ─────────────────────────────────────────────
 
@@ -44,20 +45,21 @@ class SPT_OT_clean_scene(bpy.types.Operator):
         return {"FINISHED"}
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
-class SPT_OT_fix_obj_name(bpy.types.Operator):
+class SPT_OT_fix_selected_name(bpy.types.Operator):
     
-    bl_idname = "spt.fix_obj_name"
+    bl_idname = "spt.fix_selected_name"
     bl_label  = "Fix object name"
     bl_description = "Fixes current object's name"
     bl_options = {"UNDO"}
 
     @classmethod
     def poll(cls, context):
-        return context.object and not check_name(context.object)
+        obj = context.active_object
+        return context.active_object and not check_name(obj.name, obj_type=obj.type)
 
     def execute(self, context):
-        obj = context.object
-        fix_obj_name(context, obj)
+        obj = context.active_object
+        obj.name = fix_name(context, obj, obj_type=obj.type)
         
         return {'FINISHED'}
 
@@ -241,11 +243,11 @@ class SPT_OT_normals_orient(bpy.types.Operator):
         return {'FINISHED'}
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
-class SPT_OT_fix_name(bpy.types.Operator):
+class SPT_OT_fix_obj_name(bpy.types.Operator):
     
-    bl_idname = "spt.fix_name"
-    bl_label  = "Fix names"
-    bl_description = "Fixes names by correcting them on problematic objects"
+    bl_idname = "spt.fix_obj_name"
+    bl_label  = "Fix object names"
+    bl_description = "Fixes object names by correcting them to fit desired conventions"
     bl_options = {"UNDO"}
 
     def execute(self, context):
@@ -253,8 +255,26 @@ class SPT_OT_fix_name(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
 
         for obj in context.scene.objects:
-            if not check_name(obj):
-                fix_obj_name(context, obj)
+            if not check_name(obj.name):
+                obj.name = fix_name(context, obj, obj_type=obj.type)
+        
+        return {'FINISHED'}
+
+# ──────────────────────────────────────────────────────────────────────────────────────────
+class SPT_OT_fix_mat_name(bpy.types.Operator):
+    
+    bl_idname = "spt.fix_mat_name"
+    bl_label  = "Fix material names"
+    bl_description = "Fixes material names by correcting them to fit desired conventions"
+    bl_options = {"UNDO"}
+
+    def execute(self, context):
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action='DESELECT')
+
+        for mat in bpy.data.materials:
+            if not check_name(mat.name, obj_type="material"):
+                mat.name = fix_name(context, mat, obj_type="material")
         
         return {'FINISHED'}
 
@@ -415,3 +435,38 @@ class SPT_OT_export_tool(bpy.types.Operator):
 
         self.report({'INFO'}, f"{exported_count} export(s) terminé(s).")
         return {'FINISHED'}
+
+# ──────────────────────────────────────────────────────────────────────────────────────────
+class SPT_OT_add_coll_to_unverification(bpy.types.Operator):
+    
+    bl_idname = "spt.add_coll_to_unverification"
+    bl_label  = "Add collection to unverification"
+    bl_options = {"UNDO"}
+
+    def execute(self, context):
+        props = context.scene.spt
+        global unverified_colls
+
+        coll = bpy.data.collections.get(props.unverified_collection)
+        unverified_colls.append(coll)
+        return {'FINISHED'}
+
+# ──────────────────────────────────────────────────────────────────────────────────────────
+class SPT_OT_remove_coll_from_unverification(bpy.types.Operator):
+    
+    bl_idname = "spt.remove_coll_from_unverification"
+    bl_label  = "Remove collection from unverification"
+    bl_options = {"UNDO"}
+
+    coll_name: bpy.props.StringProperty()
+
+    def execute(self, context):
+        global unverified_colls
+
+        coll = bpy.data.collections.get(self.coll_name)
+        if coll in get_valid_unverified_colls():
+            unverified_colls.remove(coll)
+        else:
+            self.report({'WARNING'}, f"'{self.coll_name}' not found.")
+        return {'FINISHED'}
+
