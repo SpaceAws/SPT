@@ -18,7 +18,7 @@ from . import SPT_panels
 bl_info = {
     "name": "Space's Python Tools",
     "author": "Space",
-    "version": (1, 0, 0),
+    "version": (1, 0, 1),
     "blender": (3, 6, 0),         # minimal Blender version
     "location": "View3D > N-Panel > SPT",
     "description": "Panel filled with tools I created using blender python",
@@ -86,6 +86,7 @@ CLASSES = [
     SPT_systemOT.SPT_OT_add_coll_to_unverification,
     SPT_systemOT.SPT_OT_remove_coll_from_unverification,
     SPT_panels.SPT_OT_show_tooltip,
+    SPT_panels.SPT_OT_set_addon_preferences,
     SPT_panels.SPT_PT_main,
     SPT_panels.SPT_PT_general,
     SPT_panels.SPT_PT_animation,
@@ -95,7 +96,6 @@ CLASSES = [
     SPT_panels.SPT_PT_setup,
     SPT_panels.SPT_PT_selector,
     SPT_panels.SPT_PT_rigging,
-    SPT_panels.SPT_PT_parameters,
     SPT_panels.SPT_PT_renamer,
     SPT_panels.SPT_PT_creator,
     SPT_panels.SPT_PT_widgets,

@@ -501,7 +501,8 @@ def check_normals_outward(obj):
     return flipped_count == 0
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
-def check_name(name, obj_type="MESH"):
+def check_name(context, name, obj_type="MESH"):
+    props = context.scene.spt
 
     unaccepted_char = [" ", "&", "é", "#", "è", "à", "@", "ç", "ù", "*", "{", "}", "(", ")", "[", "]", "€", "$", "~"]
     for char in unaccepted_char :
@@ -512,16 +513,16 @@ def check_name(name, obj_type="MESH"):
         return False
     
     if obj_type=="MESH":
-        if not name.startswith("G_") and not name.startswith("GEO_"):
+        if not name.startswith(props.mesh_prfx):
             return False
     elif obj_type=="material":
-        if not name.startswith("M_"):
+        if not name.startswith(props.material_prfx):
             return False
     elif obj_type=="ARMATURE":
-        if not name.startswith("R_") and not name.startswith("RIG_"):
+        if not name.startswith(props.armature_prfx):
             return False
     elif obj_type=="EMPTY":
-        if not name.startswith("N_"):
+        if not name.startswith(props.empty_prfx):
             return False
     else:
         prfx, base, count_sfx, side_sfx = parse_string(new_name)
@@ -591,7 +592,7 @@ def get_issues(context):
             validation_check[4] = 0
             normals_objects.append(obj.name)
         #Naming
-        if not check_name(obj.name, obj_type=obj.type):
+        if not check_name(context, obj.name, obj_type=obj.type):
             validation_check[5] = 0
             name_objects.append(obj.name)
         #Smooth
@@ -619,7 +620,7 @@ def get_issues(context):
     
     #Materials
     for mat in bpy.data.materials :
-        if not check_name(mat.name, obj_type="material") :
+        if not check_name(context, mat.name, obj_type="material") :
             validation_check[9] = 0
             material_objects.append(mat.name)
 
@@ -664,6 +665,7 @@ def get_issues(context):
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
 def fix_name(context, obj, obj_type="MESH", bone=None):
+    props = context.scene.spt
     new_name = obj.name
     # Uses bone name for armatures
     if obj_type == "bone" and bone != None:
@@ -682,23 +684,40 @@ def fix_name(context, obj, obj_type="MESH", bone=None):
         if char == " " :
             new_name = f"{new_name[:i]}_{new_name[i+1:]}"
 
+    # Parses name
+    prfx, base, count_sfx, side_sfx = parse_string(new_name)
+    if base[-1] == "_" :
+        base = base[:-1]
+
     # Checks prefixes
     if obj_type=="MESH":
-        if not new_name.startswith("G_") and not new_name.startswith("GEO_"):
-            new_name = f"GEO_{new_name}"
+        if not new_name.startswith(props.mesh_prfx):
+            if prfx != "" and base != "":
+                new_name = f"{props.mesh_prfx}{base}{count_sfx}{side_sfx}"
+            else:
+                new_name = f"{props.mesh_prfx}{new_name}"
     elif obj_type=="material":
-        if not new_name.startswith("M_"):
-            new_name = f"M_{new_name}"
+        if not new_name.startswith(props.material_prfx):
+            if prfx != "" and base != "":
+                new_name = f"{props.material_prfx}{base}{count_sfx}{side_sfx}"
+            else:
+                new_name = f"{props.material_prfx}{new_name}"
     elif obj_type=="ARMATURE":
-        if not new_name.startswith("R_") and not new_name.startswith("RIG_"):
-            new_name = f"RIG_{new_name}"
+        if not new_name.startswith(props.armature_prfx):
+            if prfx != "" and base != "":
+                new_name = f"{props.armature_prfx}{base}{count_sfx}{side_sfx}"
+            else:
+                new_name = f"{props.armature_prfx}{new_name}"
     elif obj_type=="EMPTY":
-        if not new_name.startswith("N_"):
-            new_name = f"N_{new_name}"
+        if not new_name.startswith(props.empty_prfx):
+            if prfx != "" and base != "":
+                new_name = f"{props.empty_prfx}{base}{count_sfx}{side_sfx}"
+            else:
+                new_name = f"{props.empty_prfx}{new_name}"
     else:
         prfx, base, count_sfx, side_sfx = parse_string(new_name)
         if prfx == "" or base == "":
-            new_name = f"O_{new_name}"
+            new_name = f"{props.other_prfx}{new_name}"
 
 
     # Removes numeral .001

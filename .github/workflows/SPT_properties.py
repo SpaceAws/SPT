@@ -195,10 +195,17 @@ class SPT_PG_properties(bpy.types.PropertyGroup):
     ply_export: bpy.props.BoolProperty(name="PLY",description="",default=False)
     stl_export: bpy.props.BoolProperty(name="STL",description="",default=False)
     usd_export: bpy.props.BoolProperty(name="USD",description="",default=False)
+    show_rig_pref: bpy.props.BoolProperty(name="RIGGING",description="",default=True)
+    show_general_pref: bpy.props.BoolProperty(name="GENERAL",description="",default=True)
 
     # String
     name_export: bpy.props.StringProperty(name="Export name", description="", default="", maxlen=64) 
     unverified_collection: bpy.props.StringProperty(name="Add non-checked Collection",search=collection_search)
+    mesh_prfx: bpy.props.StringProperty(name="Mesh prfx", description="", default="GEO_", maxlen=64) 
+    armature_prfx: bpy.props.StringProperty(name="Armature prfx", description="", default="RIG_", maxlen=64) 
+    material_prfx: bpy.props.StringProperty(name="Material prfx", description="", default="M_", maxlen=64) 
+    empty_prfx: bpy.props.StringProperty(name="Empty prfx", description="", default="N_", maxlen=64) 
+    other_prfx: bpy.props.StringProperty(name="Other prfx", description="", default="O_", maxlen=64) 
 
 class SPT_PG_preset_item(bpy.types.PropertyGroup):
     preset_name: bpy.props.StringProperty()

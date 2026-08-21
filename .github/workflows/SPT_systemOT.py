@@ -20,7 +20,7 @@ from .SPT_functions import *
 #   - Scene validator : show hidden ou del hidden pour les modifiers, ajouter une vérif des materials si mesh (naming), naming des bones si armature, pas de smooth verif si hidden (control shapes)
 #   - Render tool : auto-render de frame ranges, changements de paramètres entre deux...
 #   - Comparator : Comparaison de 2 versions pour review les changements
-#   - Set prefixes global pour tout l'addon (bones et objects) avec la popup et des props
+#   - Name fixer : add curve type (C_) and text type (T_) and image type (IMG_)
 
 # ─────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ class SPT_OT_fix_selected_name(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return context.active_object and not check_name(obj.name, obj_type=obj.type)
+        return context.active_object and not check_name(context, obj.name, obj_type=obj.type)
 
     def execute(self, context):
         obj = context.active_object
@@ -255,7 +255,7 @@ class SPT_OT_fix_obj_name(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
 
         for obj in context.scene.objects:
-            if not check_name(obj.name):
+            if not check_name(context, obj.name):
                 obj.name = fix_name(context, obj, obj_type=obj.type)
         
         return {'FINISHED'}
@@ -273,7 +273,7 @@ class SPT_OT_fix_mat_name(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
 
         for mat in bpy.data.materials:
-            if not check_name(mat.name, obj_type="material"):
+            if not check_name(context, mat.name, obj_type="material"):
                 mat.name = fix_name(context, mat, obj_type="material")
         
         return {'FINISHED'}

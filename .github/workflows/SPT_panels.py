@@ -1,6 +1,6 @@
 # This script contains all the following operators and panels :
 #   - General Operators :
-#       - Unregistering add-on to clear n-panel until next blender launch
+#       - Setting addon preferences
 #       - Showing tooltip if you need to access its informations again
 #   - General Panel :
 #       - Giving access to general operators and some information boxes about the active object
@@ -39,6 +39,104 @@ class SPT_OT_show_tooltip(bpy.types.Operator):
         props = context.scene.spt
         
         props.hide_info = False
+        return {'FINISHED'}
+
+# ──────────────────────────────────────────────────────────────────────────────────────────
+class SPT_OT_set_addon_preferences(bpy.types.Operator):
+    
+    bl_idname = "spt.set_addon_preferences"
+    bl_label  = "Add-on preferences"
+    bl_options = {"UNDO"}
+
+    def invoke(self, context, event):
+        width = 630
+        window = context.window
+        center_x = (window.width//2)-(width//2)
+        center_y = (window.height//2)+(width//2)
+        window.cursor_warp(center_x, center_y)
+        return context.window_manager.invoke_props_dialog(self, width=width)
+
+    def draw(self, context):
+        props = context.scene.spt
+        layout = self.layout
+        
+        box = layout.box()
+        row = box.row(align=True)
+        row.prop(props, "show_rig_pref", toggle=True)
+        row.prop(props, "show_general_pref", toggle=True)
+
+        if props.show_rig_pref :
+            # ── Label ──
+            row=layout.row()
+            row.alignment = "CENTER"
+            row.label(text="──── RIG PREFERENCES ────")
+            # ── Separator ──
+            layout.separator()
+            
+            # ── Bones ──
+            row=layout.row()
+            row.label(text="Bone Prefix")
+            row.prop(props, "skin_prfx", text="")
+
+            row=layout.row()
+            row.label(text="Controller Prefix")
+            row.prop(props, "control_prfx", text="")
+
+            row=layout.row()
+            row.label(text="Mechanic Prefix")
+            row.prop(props, "mecha_prfx", text="")
+            
+            # ── Colors ──
+            row=layout.row()
+            row.label(text="Controller Left Color")
+            row.prop(props, "bone_color_l", text="")
+
+            row=layout.row()
+            row.label(text="Controller Center Color")
+            row.prop(props, "bone_color", text="")
+
+            row=layout.row()
+            row.label(text="Controller Right Color")
+            row.prop(props, "bone_color_r", text="")
+            
+            # ── Separator ──
+            layout.separator()
+
+        if props.show_general_pref :
+            # ── Label ──
+            row=layout.row()
+            row.alignment = "CENTER"
+            row.label(text="──── GENERAL PREFERENCES ────")
+            # ── Separator ──
+            layout.separator()
+            
+            # ── Label ──
+            row=layout.row()
+            row.label(text="Mesh Prefix")
+            row.prop(props, "mesh_prfx", text="")
+
+            row=layout.row()
+            row.label(text="Armature Prefix")
+            row.prop(props, "armature_prfx", text="")
+
+            row=layout.row()
+            row.label(text="Material Prefix")
+            row.prop(props, "material_prfx", text="")
+
+            row=layout.row()
+            row.label(text="Empty Prefix")
+            row.prop(props, "empty_prfx", text="")
+
+            row=layout.row()
+            row.label(text="Other Prefix")
+            row.prop(props, "other_prfx", text="")
+
+            # ── Separator ──
+            layout.separator()
+
+
+    def execute(self, context):
+        
         return {'FINISHED'}
 
 # ─────────────────────────────────────────────
@@ -86,7 +184,9 @@ class SPT_PT_general(bpy.types.Panel):
         # ── Separator ──
         layout.separator()
         # ── Button ──
-        layout.operator("spt.show_tooltip")
+        layout.operator("spt.set_addon_preferences", icon="PREFERENCES")
+        # ── Button ──
+        layout.operator("spt.show_tooltip", icon="HIDE_OFF")
         # ── Separator ──
         layout.separator()
         
@@ -354,50 +454,9 @@ class SPT_PT_rigging(bpy.types.Panel):
         row.operator("spt.select_parents")
 
 # ──────────────────────────────────────────────────────────────────────────────────────────
-class SPT_PT_parameters(bpy.types.Panel):
-    
-    bl_label       = "Parameters ──────────────"
-    bl_idname      = "SPT_PT_parameters"
-    bl_space_type  = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category    = "SPT"
-    bl_parent_id   = "SPT_PT_rigging"
-    bl_options     = {"DEFAULT_CLOSED"}
-    
-    def draw(self, context):
-        layout = self.layout
-        props  = context.scene.spt
-        
-        # ── Separator ──
-        layout.separator()
-        
-        # ── Label ──
-        row=layout.row()
-        row.alignment = "CENTER"
-        row.label(text="Bones Prefixes")
-        # ── Prefixes entries ──
-        row = layout.row()
-        row.prop(props, "skin_prfx", text="")
-        row.prop(props, "control_prfx", text="")
-        row.prop(props, "mecha_prfx", text="")
-        
-        # ── Label ──
-        row=layout.row()
-        row.alignment = "CENTER"
-        row.label(text="Controller Colors")
-        # ── Colors ──
-        row = layout.row()
-        row.prop(props, "bone_color_l", text="")
-        row.prop(props, "bone_color", text="")
-        row.prop(props, "bone_color_r", text="")
-        
-        # ── Separator ──
-        layout.separator()
-
-# ──────────────────────────────────────────────────────────────────────────────────────────
 class SPT_PT_renamer(bpy.types.Panel):
     
-    bl_label       = "── Renamer ────────────"
+    bl_label       = "Renamer ──────────────"
     bl_idname      = "SPT_PT_renamer"
     bl_space_type  = "VIEW_3D"
     bl_region_type = "UI"
@@ -459,7 +518,7 @@ class SPT_PT_renamer(bpy.types.Panel):
 # ──────────────────────────────────────────────────────────────────────────────────────────  
 class SPT_PT_creator(bpy.types.Panel):
     
-    bl_label       = "──── Creator ───────────"
+    bl_label       = "── Creator ─────────────"
     bl_idname      = "SPT_PT_creator"
     bl_space_type  = "VIEW_3D"
     bl_region_type = "UI"
@@ -597,7 +656,7 @@ class SPT_PT_creator(bpy.types.Panel):
 # ──────────────────────────────────────────────────────────────────────────────────────────
 class SPT_PT_widgets(bpy.types.Panel):
     
-    bl_label       = "────── Widgets ────────"
+    bl_label       = "──── Widgets ──────────"
     bl_idname      = "SPT_PT_widgets"
     bl_space_type  = "VIEW_3D"
     bl_region_type = "UI"
