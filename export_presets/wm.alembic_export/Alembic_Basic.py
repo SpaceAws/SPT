@@ -1,0 +1,31 @@
+import bpy
+op = bpy.context.active_operator
+
+op.start = 1
+op.end = 250
+op.xsamples = 1
+op.gsamples = 1
+op.sh_open = 0.0
+op.sh_close = 1.0
+op.selected = True
+op.flatten = False
+op.uvs = True
+op.packuv = True
+op.normals = True
+op.vcolors = False
+op.orcos = True
+op.face_sets = False
+op.subdiv_schema = False
+op.apply_subdiv = False
+op.curves_as_mesh = False
+op.use_instancing = True
+op.global_scale = 1.0
+op.triangulate = False
+op.quad_method = 'SHORTEST_DIAGONAL'
+op.ngon_method = 'BEAUTY'
+op.export_hair = True
+op.export_particles = True
+op.export_custom_properties = True
+op.as_background_job = True
+op.evaluation_mode = 'RENDER'
+op.init_scene_frame_range = False
