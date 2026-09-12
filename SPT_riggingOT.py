@@ -1142,14 +1142,14 @@ class SPT_OT_create_fk_control(SPT_OT_base_bone_action):
         bpy.ops.object.mode_set(mode="EDIT")
         selected_bones = context.selected_editable_bones
         
-        controller_created = create_fk_controller(context, selected_bones)
+        errors = create_fk_controller(context, selected_bones)
             
         bpy.ops.object.mode_set(mode=base_mode)  
         
-        if controller_created :
+        if errors == [] :
             self.report({"INFO"}, f"FK controller added for selected bones")
         else :
-            self.report({"WARNING"}, f"Selected bone(s) has(have) no recognized preffix")
+            self.report({"WARNING"}, f"Following bones have no recognized prefix : {errors}")
         return {'FINISHED'}
     
 # ──────────────────────────────────────────────────────────────────────────────────────────    

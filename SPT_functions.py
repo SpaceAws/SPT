@@ -295,15 +295,14 @@ def create_fk_controller(context, bones):
     props = context.scene.spt
     active_obj = context.active_object
     active_rig = active_obj.data
-    done = False
+    error_bones = []
     
     # ── Creating control rig ──
     # ── Creating bones ──     
     bpy.ops.object.mode_set(mode="EDIT")
     control_bones_created = []  # stocks names to access them later
     for bone in bones :
-        if bone.name.startswith(props.skin_prfx) :   
-            done = True             
+        if bone.name.startswith(props.skin_prfx) :             
             control_bone = active_rig.edit_bones.get(f"{props.control_prfx}FK_{bone.name[len(props.skin_prfx):]}")
             if not control_bone :
                 control_bone = active_rig.edit_bones.new(f"{props.control_prfx}FK_{bone.name[len(props.skin_prfx):]}")
@@ -314,29 +313,31 @@ def create_fk_controller(context, bones):
                 control_bone.parent      = parent_bone
                 control_bone.use_deform = False
             control_bones_created.append((bone.name, control_bone.name))
+        else :
+            error_bones.append(bone.name)
+
             
-    if done :
-        # Creates or gets controller collection
-        check_collections(props, active_rig, "FK", control_bones_created)
-                        
-        # ── Creating copy transforms constraints
-        bpy.ops.object.mode_set(mode="POSE")
-        for bone_name, control_name in control_bones_created:
-            pose_bone = active_obj.pose.bones[bone_name]
-            control_bone = active_obj.pose.bones[control_name]
-            constraint = pose_bone.constraints.new("COPY_TRANSFORMS")
-            constraint.target    = active_obj        # l'objet cible (peut être une autre armature)
-            constraint.subtarget = control_bone.name   # nom du bone cible (string)
-            constraint.name = "Copy Transforms FK"
+    # Creates or gets controller collection
+    check_collections(props, active_rig, "FK", control_bones_created)
+                    
+    # ── Creating copy transforms constraints
+    bpy.ops.object.mode_set(mode="POSE")
+    for bone_name, control_name in control_bones_created:
+        pose_bone = active_obj.pose.bones[bone_name]
+        control_bone = active_obj.pose.bones[control_name]
+        constraint = pose_bone.constraints.new("COPY_TRANSFORMS")
+        constraint.target    = active_obj        # l'objet cible (peut être une autre armature)
+        constraint.subtarget = control_bone.name   # nom du bone cible (string)
+        constraint.name = "Copy Transforms FK"
+    
+    # ── Creating controller shapes ──                
+    # ── Creating shape in Object Mode ──
+    shape_bones = []
+    for bone_name, control_name in control_bones_created:
+        shape_bones.append(control_name)
+    create_controllers(context, shape_bones)
         
-        # ── Creating controller shapes ──                
-        # ── Creating shape in Object Mode ──
-        shape_bones = []
-        for bone_name, control_name in control_bones_created:
-            shape_bones.append(control_name)
-        create_controllers(context, shape_bones)
-        
-    return done
+    return error_bones
 
 # ──────────────────────────────────────────────────────────────────────────────────────────    
 def create_shape(name, vertices_positions, edges):
